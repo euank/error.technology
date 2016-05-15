@@ -1,0 +1,6 @@
+
+{
+  "Short": "packet_write_wait: Connection to ${ip} port 22: Broken pipe",
+  "Language": "sh",
+  "Tags": ["ssh", "network"]
+}

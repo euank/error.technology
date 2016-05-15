@@ -1,0 +1,6 @@
+{
+  "Short": "TypeError: module.__init__() takes at most 2 arguments (3 given)",
+  "Full": "TypeError: module.__init__() takes at most 2 arguments (3 given)",
+  "Language": "python",
+  "Tags": ["types", "module", "arity"]
+}

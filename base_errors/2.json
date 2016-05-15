@@ -1,0 +1,5 @@
+{
+  "Short":    "expected '{', found 'type'",
+  "Language": "go",
+  "Tags":     ["brace", "syntax"]
+}
