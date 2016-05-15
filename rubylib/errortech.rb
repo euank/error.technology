@@ -1,7 +1,8 @@
 class Exception
   def initialize(*args)
     api = ENV["ERROR_API"] || "localhost:8080"
-    @message = `curl --silent "#{api}/?lang=ruby&full=true"`
+    params = ENV["ERROR_API_PARAMS"]
+    @message = `curl --silent "#{api}/?lang=ruby&full=true#{params}"`
   end
 
   def message

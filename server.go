@@ -4,20 +4,18 @@ import (
 	"encoding/json"
 	"io"
 	"io/ioutil"
-	"math/rand"
 	"net/http"
-	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
 	"github.com/euank/api.error.technology/errortech"
+	"github.com/euank/api.error.technology/providers"
 )
 
 type ErrorRequest struct {
-	Language string
+	Language string   `json:"language"`
 	Tags     []string `json:"tags"`
+	Source   string   `json:"source"`
 }
 
 // GET /error?language=foo&tags=foo,bar,baz
@@ -31,30 +29,8 @@ var missingErrErr = errortech.Error{
 var missingErrData, _ = json.Marshal(missingErrErr)
 
 func main() {
-	errors := []errortech.Error{}
-	// Load errors from disk
-	files, err := ioutil.ReadDir("base_errors")
-	if err != nil {
-		panic(err)
-	}
-	for _, file := range files {
-		if file.IsDir() {
-			continue
-		}
-		f, err := os.Open(filepath.Join("base_errors", file.Name()))
-		if err != nil {
-			panic(err)
-		}
-		data, err := ioutil.ReadAll(f)
-		if err != nil {
-			panic(err)
-		}
-		var diskErr errortech.Error
-		if err := json.Unmarshal(data, &diskErr); err != nil {
-			panic(err)
-		}
-		errors = append(errors, diskErr)
-	}
+
+	errProv := providers.NewDefaultProviders()
 
 	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		logrus.Infof("Request: %v", r)
@@ -63,6 +39,7 @@ func main() {
 		var language string
 		var tags []string
 		var full bool
+		var source string
 
 		if lang, ok := queryParams["lang"]; ok {
 			logrus.Infof("lang is %v", lang)
@@ -70,6 +47,15 @@ func main() {
 				logrus.Errorf("Expected language to be at least length 1")
 			} else {
 				language = lang[0]
+			}
+		}
+
+		if pquery, ok := queryParams["source"]; ok {
+			logrus.Infof("provider is %v", pquery)
+			if len(pquery) == 0 {
+				logrus.Errorf("Expected at least a provider")
+			} else {
+				source = pquery[0]
 			}
 		}
 
@@ -98,37 +84,29 @@ func main() {
 				if len(req.Tags) > 0 {
 					tags = req.Tags
 				}
+				if req.Source != "" {
+					source = req.Source
+				}
 			}
 		}
 
 		// tags all collected, now let's find any errors that match this request
 
-		candidates := make([]scoredErr, len(errors))
-		for i, err := range errors {
-			candidate := scoredErr{e: err}
-			if err.Language == language {
-				candidate.score += 100
+		var provider providers.ErrorProvider
+		for _, prov := range errProv.All() {
+			if prov.Name() == source {
+				provider = prov
 			}
-
-			candidate.score += numMatch(err.Tags, tags) * 10
-			candidates[i] = candidate
 		}
 
-		sort.Sort(byScore(candidates))
+		if provider == nil {
+			provider = errProv.Random()
+		}
+
+		chosenErr := provider.GetError(language, tags)
 
 		w.WriteHeader(500)
-		if len(candidates) == 0 {
-			writeErr(full, missingErrErr, w)
-			return
-		}
-
-		numEqualScores := 0
-		bestScore := candidates[0].score
-		for ; numEqualScores < len(candidates) && candidates[numEqualScores].score == bestScore; numEqualScores++ {
-		}
-		choice := candidates[rand.Intn(numEqualScores)]
-		logrus.Infof("Error chosen: %v", choice)
-		writeErr(full, choice.e, w)
+		writeErr(full, chosenErr, w)
 	}))
 }
 
@@ -147,35 +125,4 @@ func writeErr(full bool, e errortech.Error, w io.Writer) {
 		return
 	}
 	w.Write(data)
-}
-
-type scoredErr struct {
-	e     errortech.Error
-	score int
-}
-
-type byScore []scoredErr
-
-func (b byScore) Len() int {
-	return len(b)
-}
-
-func (b byScore) Less(x, y int) bool {
-	return b[x].score > b[y].score
-}
-
-func (b byScore) Swap(x, y int) {
-	b[x], b[y] = b[y], b[x]
-}
-
-func numMatch(x, y []string) int {
-	num := 0
-	for _, el := range x {
-		for _, el2 := range y {
-			if el == el2 {
-				num++
-			}
-		}
-	}
-	return num
 }
