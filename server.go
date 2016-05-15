@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -21,15 +22,15 @@ type ErrorRequest struct {
 
 // GET /error?language=foo&tags=foo,bar,baz
 
-func main() {
-	missingErrErr := errortech.Error{
-		Short:    "No error found matching your request",
-		Full:     "No error found matching your request",
-		Language: "json",
-		Tags:     []string{"404"},
-	}
-	missingErrData, _ := json.Marshal(missingErrErr)
+var missingErrErr = errortech.Error{
+	Short:    "No error found matching your request",
+	Full:     "No error found matching your request",
+	Language: "json",
+	Tags:     []string{"404"},
+}
+var missingErrData, _ = json.Marshal(missingErrErr)
 
+func main() {
 	errors := []errortech.Error{}
 	// Load errors from disk
 	files, err := ioutil.ReadDir("base_errors")
@@ -56,11 +57,12 @@ func main() {
 	}
 
 	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Parse request
-		// Default to a random *any* error
+		logrus.Infof("Request: %v", r)
+
 		queryParams := map[string][]string(r.URL.Query())
 		var language string
 		var tags []string
+		var full bool
 
 		if lang, ok := queryParams["lang"]; ok {
 			logrus.Infof("lang is %v", lang)
@@ -74,6 +76,11 @@ func main() {
 		if tags, ok := queryParams["tags"]; ok {
 			// TODO index oob
 			tags = strings.Split(tags[0], ",")
+		}
+
+		_, full = queryParams["full"]
+		if full {
+			logrus.Infof("full is true")
 		}
 
 		body, err := ioutil.ReadAll(r.Body)
@@ -111,23 +118,32 @@ func main() {
 
 		w.WriteHeader(500)
 		if len(candidates) == 0 {
-			w.Write(missingErrData)
+			writeErr(full, missingErrErr, w)
 			return
 		}
+
 		numEqualScores := 0
 		bestScore := candidates[0].score
 		for ; numEqualScores < len(candidates) && candidates[numEqualScores].score == bestScore; numEqualScores++ {
 		}
 		choice := candidates[rand.Intn(numEqualScores)]
 		logrus.Infof("Error chosen: %v", choice)
-		data, err := json.Marshal(choice.e)
-		if err != nil {
-			logrus.Errorf("Error %v", err)
-			w.Write(missingErrData)
-			return
-		}
-		w.Write(data)
+		writeErr(full, choice.e, w)
 	}))
+}
+
+func writeErr(full bool, e errortech.Error, w io.Writer) {
+	if full {
+		w.Write([]byte(e.Full))
+		return
+	}
+	data, err := json.Marshal(e)
+	if err != nil {
+		logrus.Errorf("Error %v", err)
+		w.Write(missingErrData)
+		return
+	}
+	w.Write(data)
 }
 
 type scoredErr struct {
