@@ -133,6 +133,9 @@ func main() {
 }
 
 func writeErr(full bool, e errortech.Error, w io.Writer) {
+	if e.Full == "" {
+		e.Full = e.Short
+	}
 	if full {
 		w.Write([]byte(e.Full))
 		return

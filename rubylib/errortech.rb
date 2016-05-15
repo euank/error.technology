@@ -13,6 +13,11 @@ class Exception
   end
 
   def backtrace
+    # line numbers make it waaay too easy
+    []
+  end
+
+  def backtrace_locations
     []
   end
 end

@@ -1,4 +1,4 @@
 require './errortech.rb'
 
 
-raise Error.new("asdf")
+raise JSON.parse("asdf")
