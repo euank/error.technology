@@ -1,0 +1,5 @@
+FROM scratch
+COPY base_errors /base_errors/
+COPY server /server
+EXPOSE 8080
+ENTRYPOINT ["/server"]
