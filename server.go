@@ -5,10 +5,13 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/Sirupsen/logrus"
+	"github.com/euank/api.error.technology/errortech"
 )
 
 type ErrorRequest struct {
@@ -16,18 +19,10 @@ type ErrorRequest struct {
 	Tags     []string `json:"tags"`
 }
 
-type Error struct {
-	Short    string
-	Full     string
-	Language string
-	Tags     []string
-}
-
 // GET /error?language=foo&tags=foo,bar,baz
 
 func main() {
-
-	missingErrErr := Error{
+	missingErrErr := errortech.Error{
 		Short:    "No error found matching your request",
 		Full:     "No error found matching your request",
 		Language: "json",
@@ -35,21 +30,30 @@ func main() {
 	}
 	missingErrData, _ := json.Marshal(missingErrErr)
 
-	errors := []Error{
-		{
-			Short:    "TypeError: module.__init__() takes at most 2 arguments (3 given)",
-			Full:     "TypeError: module.__init__() takes at most 2 arguments (3 given)",
-			Language: "python",
-			Tags:     []string{"types", "module", "arity"},
-		},
-		{
-			Short:    "expected '{', found 'type'",
-			Language: "go",
-			Tags:     []string{"brace", "syntax"},
-		},
+	errors := []errortech.Error{}
+	// Load errors from disk
+	files, err := ioutil.ReadDir("base_errors")
+	if err != nil {
+		panic(err)
 	}
-
-	// TODO load real errors
+	for _, file := range files {
+		if file.IsDir() {
+			continue
+		}
+		f, err := os.Open(filepath.Join("base_errors", file.Name()))
+		if err != nil {
+			panic(err)
+		}
+		data, err := ioutil.ReadAll(f)
+		if err != nil {
+			panic(err)
+		}
+		var diskErr errortech.Error
+		if err := json.Unmarshal(data, &diskErr); err != nil {
+			panic(err)
+		}
+		errors = append(errors, diskErr)
+	}
 
 	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse request
@@ -127,7 +131,7 @@ func main() {
 }
 
 type scoredErr struct {
-	e     Error
+	e     errortech.Error
 	score int
 }
 
