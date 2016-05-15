@@ -1,4 +1,4 @@
-package artisinal
+package artisanal
 
 import (
 	"fmt"
@@ -16,7 +16,7 @@ func New() provider {
 }
 
 func (provider) Name() string {
-	return "artisinal"
+	return "artisanal"
 }
 
 var badErrErr = errortech.Error{

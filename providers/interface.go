@@ -2,7 +2,7 @@ package providers
 
 import (
 	"github.com/euank/api.error.technology/errortech"
-	"github.com/euank/api.error.technology/providers/artisinal"
+	"github.com/euank/api.error.technology/providers/artisanal"
 	"github.com/euank/api.error.technology/providers/ondisk"
 )
 
@@ -19,7 +19,7 @@ type Providers struct {
 func NewDefaultProviders() Providers {
 	return Providers{
 		FS:        ondisk.New(),
-		Artisinal: artisinal.New(),
+		Artisinal: artisanal.New(),
 	}
 }
 
