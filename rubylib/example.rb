@@ -1,4 +1,10 @@
-require './errortech.rb'
+require_relative './errortech.rb'
+require 'json'
 
-
-JSON.parse("asdf")
+10.times do
+  begin
+  JSON.parse("asdf")
+  rescue Exception => e
+    puts e
+  end
+end

@@ -33,6 +33,9 @@ func main() {
 	errProv := providers.NewDefaultProviders()
 
 	http.ListenAndServe(":8080", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+
 		logrus.Infof("Request: %v", r)
 
 		queryParams := map[string][]string(r.URL.Query())
